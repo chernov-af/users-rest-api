@@ -1,0 +1,52 @@
+
+configMap:
+  data:
+    DB_HOST: 10.0.0.6
+    DB_PORT: 5432
+
+secret:
+  data:
+    DB_USER: andrey
+    DB_PASSWORD: 2m(nQ2X09zf3x27V
+    DB_NAME: chafdb
+
+deployment:
+  image: 95.163.248.104:5000/slurm.io/users-rest-api:latest
+  imagePullSecret: regcred
+  replicas: 1
+  resources:
+    requests:
+      cpu: 100m
+      memory: 100Mi
+    limits:
+      cpu: 300m
+      memory: 300Mi
+  livenessProbe:
+    initialDelaySeconds: 5
+    periodSeconds: 5
+    timeoutSeconds: 5
+    successThreshold: 1
+    failureThreshold: 3
+  readinessProbe:
+    initialDelaySeconds: 5
+    periodSeconds: 5
+    timeoutSeconds: 1
+    successThreshold: 1
+    failureThreshold: 3
+
+service:
+  type: ClusterIP
+  externalPort: 80
+  internalPort: 5000
+
+ingress:
+  enabled: true
+  className: "nginx"
+  annotations: {}
+    # kubernetes.io/ingress.class: nginx
+    # kubernetes.io/tls-acme: "true"
+  hosts:
+    - host: users.chernovaf.cloudns.ph
+      paths:
+        - path: /
+          pathType: Prefix

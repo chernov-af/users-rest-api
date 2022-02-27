@@ -1,0 +1,51 @@
+{{- $fullName := include "thisChart.fullname" . }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $fullName }}
+  labels:
+    {{- include "thisChart.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.deployment.replicas | default 2 }}
+  selector:
+    matchLabels:
+      {{- include "thisChart.selectorLabels" . | nindent 6 }}
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        {{- include "thisChart.selectorLabels" . | nindent 8 }}
+    spec:
+      imagePullSecrets:
+      - name: {{ .Values.deployment.imagePullSecret }}
+      containers:
+      - name: {{ template "thisChart.fullname" . }}
+        image: {{ .Values.deployment.image }}
+        ports:
+        - containerPort: {{ .Values.service.internalPort }}
+        env:
+        - name: "PORT"
+          value: {{ .Values.service.internalPort | quote }}
+        envFrom:
+        - configMapRef:
+            name: {{ $fullName }}
+        - secretRef:
+            name: {{ $fullName }}
+        resources:
+          {{- toYaml .Values.deployment.resources | nindent 10 }}
+        livenessProbe:
+          httpGet:
+            path: /users
+            port: {{ .Values.service.internalPort }}
+            scheme: HTTP
+          {{- toYaml .Values.deployment.livenessProbe | nindent 10 }}
+        readinessProbe:
+          httpGet:
+            path: /users
+            port: {{ .Values.service.internalPort }}
+            scheme: HTTP
+          {{- toYaml .Values.deployment.readinessProbe | nindent 10 }}

@@ -1,0 +1,184 @@
+---
+# Source: users/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: users-rest-api
+  labels:
+    app.kubernetes.io/name: users
+    app.kubernetes.io/instance: users-rest-api
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+type: Opaque
+data:
+  DB_NAME: "Y2hhZmRi"
+  DB_PASSWORD: "Mm0oblEyWDA5emYzeDI3Vg=="
+  DB_USER: "YW5kcmV5"
+---
+# Source: users/templates/configMap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: users-rest-api
+  labels:
+    app.kubernetes.io/name: users
+    app.kubernetes.io/instance: users-rest-api
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+data:
+  DB_HOST: "10.0.0.6"
+  DB_PORT: "5432"
+---
+# Source: users/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: users-rest-api
+  labels:
+    app.kubernetes.io/name: users
+    app.kubernetes.io/instance: users-rest-api
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: 5000
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: users
+    app.kubernetes.io/instance: users-rest-api
+---
+# Source: users/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: users-rest-api
+  labels:
+    app.kubernetes.io/name: users
+    app.kubernetes.io/instance: users-rest-api
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: users
+      app.kubernetes.io/instance: users-rest-api
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: users
+        app.kubernetes.io/instance: users-rest-api
+    spec:
+      imagePullSecrets:
+      - name: regcred
+      containers:
+      - name: users-rest-api
+        image: 95.163.248.104:5000/slurm.io/users-rest-api:latest
+        ports:
+        - containerPort: 5000
+        env:
+        - name: "PORT"
+          value: "5000"
+        envFrom:
+        - configMapRef:
+            name: users-rest-api
+        - secretRef:
+            name: users-rest-api
+        resources:
+          limits:
+            cpu: 300m
+            memory: 300Mi
+          requests:
+            cpu: 100m
+            memory: 100Mi
+        livenessProbe:
+          httpGet:
+            path: /users
+            port: 5000
+            scheme: HTTP
+          failureThreshold: 3
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          successThreshold: 1
+          timeoutSeconds: 5
+        readinessProbe:
+          httpGet:
+            path: /users
+            port: 5000
+            scheme: HTTP
+          failureThreshold: 3
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          successThreshold: 1
+          timeoutSeconds: 1
+---
+# Source: users/templates/ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: users-rest-api
+  labels:
+    app.kubernetes.io/name: users
+    app.kubernetes.io/instance: users-rest-api
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: "users.chernovaf.cloudns.ph"
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: users-rest-api
+                port:
+                  number: 80
+---
+# Source: users/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "users-rest-api-test-connection"
+  labels:
+    app.kubernetes.io/name: users
+    app.kubernetes.io/instance: users-rest-api
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": post-install,test
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  initContainers:
+  - name: sleep
+    image: busybox
+    command: ["sleep"]
+    args: ["5"]
+    resources:
+      limits:
+        cpu: 300m
+        memory: 300Mi
+      requests:
+        cpu: 100m
+        memory: 100Mi
+  containers:
+  - name: wget
+    image: busybox
+    command: ["wget"]
+    args: ["-T", "5", 'users-rest-api:80/users']
+    resources:
+      limits:
+        cpu: 300m
+        memory: 300Mi
+      requests:
+        cpu: 100m
+        memory: 100Mi
+  restartPolicy: Never

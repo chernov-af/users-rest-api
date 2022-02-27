@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "{{ template "thisChart.fullname" . }}-test-connection"
+  labels:
+    {{- include "thisChart.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": post-install,test
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  initContainers:
+  - name: sleep
+    image: busybox
+    command: ["sleep"]
+    args: ["5"]
+    resources:
+      {{- toYaml .Values.deployment.resources | nindent 6 }}
+  containers:
+  - name: wget
+    image: busybox
+    command: ["wget"]
+    args: ["-T", "5", '{{ template "thisChart.fullname" . }}:{{ .Values.service.externalPort }}/users']
+    resources:
+      {{- toYaml .Values.deployment.resources | nindent 6 }}
+  restartPolicy: Never

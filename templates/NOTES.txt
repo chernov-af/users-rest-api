@@ -1,0 +1,9 @@
+The release '{{ .Release.Name }}' has been installed into namespace '{{ .Release.Namespace }}' from chart '{{ .Chart.Name }}'.
+URLs for external access to application:
+  {{- range .Values.ingress.hosts }}
+  - {{ .host }}
+    Paths:
+    {{- range .paths }}
+    - {{ .path }}
+    {{- end }}
+  {{- end }}
